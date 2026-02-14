@@ -13,6 +13,9 @@ export function usePlayerMovement() {
   const friction: number = 0.9;
   const dashPower: number = 25;
 
+  const playerWidth = 20;
+  const playerHeight = 80;
+
   useEffect(() => {
     const handleDown = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase() as GameKey;
@@ -54,8 +57,25 @@ export function usePlayerMovement() {
     velocity.current.x *= friction;
     velocity.current.y *= friction;
 
-    playerLocation.current.x += velocity.current.x;
-    playerLocation.current.y += velocity.current.y;
+    if (playerLocation.current.x < playerWidth) {
+      playerLocation.current.x = playerWidth;
+      velocity.current.x = 0;
+    } else if (playerLocation.current.x > window.innerWidth - playerWidth) {
+      playerLocation.current.x = window.innerWidth - playerWidth;
+      velocity.current.x = 0;
+    } else {
+      playerLocation.current.x += velocity.current.x;
+    }
+
+    if (playerLocation.current.y < playerHeight) {
+      playerLocation.current.y = playerHeight;
+      velocity.current.y = 0;
+    } else if (playerLocation.current.y > window.innerHeight - playerHeight) {
+      playerLocation.current.y = window.innerHeight - playerHeight;
+      velocity.current.y = 0;
+    } else {
+      playerLocation.current.y += velocity.current.y;
+    }
 
     return {
       pos: playerLocation.current,
