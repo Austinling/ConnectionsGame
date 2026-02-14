@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
-import { Stage, Layer, Circle } from "react-konva";
+import { Stage, Layer } from "react-konva";
 import { usePlayerMovement } from "./PlayerMovement";
+import { Player } from "./Player";
 import Konva from "konva";
 
 export function StageBackground() {
@@ -10,7 +11,7 @@ export function StageBackground() {
   });
 
   const { playerLocation, update } = usePlayerMovement();
-  const circleRef = useRef<Konva.Circle>(null);
+  const playerRef = useRef<Konva.Group>(null);
 
   useEffect(() => {
     const handleResize = () => {
@@ -27,9 +28,22 @@ export function StageBackground() {
     const loop = () => {
       const newPos = update();
 
-      if (circleRef.current && newPos) {
-        circleRef.current.x(newPos.x);
-        circleRef.current.y(newPos.y);
+      const children = playerRef.current?.getChildren();
+
+      if (playerRef.current && newPos) {
+        playerRef.current.x(newPos.pos.x);
+        playerRef.current.y(newPos.pos.y);
+
+        const speed = 0.005;
+        const range = 5;
+
+        const time = Date.now() * speed;
+
+        children?.forEach((child, index) => {
+          const actualChild = child as Konva.Node;
+          const bob = Math.sin(time + index * 0.8) * range;
+          actualChild.y(actualChild.getAttr("initialY") + bob);
+        });
       }
 
       frameId = requestAnimationFrame(loop);
@@ -43,13 +57,7 @@ export function StageBackground() {
   return (
     <Stage width={size.width} height={size.height}>
       <Layer>
-        <Circle
-          ref={circleRef}
-          x={playerLocation.current.x}
-          y={playerLocation.current.y}
-          radius={50}
-          fill="green"
-        />
+        <Player playerRef={playerRef} />
       </Layer>
     </Stage>
   );

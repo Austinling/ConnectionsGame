@@ -1,0 +1,11 @@
+name: GitHub Actions
+run-name: Run The Game
+on: [push]
+jobs:
+  Explore-GitHub-Actions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Dependencies
+      - run: npm install
+      - name: NPM build
+      - run: npm run build

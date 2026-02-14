@@ -57,7 +57,10 @@ export function usePlayerMovement() {
     playerLocation.current.x += velocity.current.x;
     playerLocation.current.y += velocity.current.y;
 
-    return playerLocation.current;
+    return {
+      pos: playerLocation.current,
+      vel: velocity.current,
+    };
   };
 
   return { playerLocation, update };
