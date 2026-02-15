@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Konva from "konva";
 import type { PlayerParts } from "../types";
 
@@ -18,6 +18,7 @@ export function useWhipInput(
   const whipId = useRef(0);
   const strikeDir = useRef({ x: 0, y: 0 });
   const lastWhipAt = useRef(0);
+  const [cooldownRatio, setCooldownRatio] = useState(0);
 
   const whipSegments = useRef(
     new Array(10).fill(null).map(() => ({ x: 0, y: 0 })),
@@ -57,5 +58,25 @@ export function useWhipInput(
     return () => window.removeEventListener("mousedown", handleWhip);
   }, [playerRef, bossRef, playerParts]);
 
-  return { tetherRef, whipSegments, whipRef, isWhipping, strikeDir, whipId };
+  useEffect(() => {
+    let frameId: number;
+    const tick = () => {
+      const remaining = Math.max(0, 1000 - (Date.now() - lastWhipAt.current));
+      setCooldownRatio(remaining / 1000);
+      frameId = requestAnimationFrame(tick);
+    };
+
+    frameId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frameId);
+  }, []);
+
+  return {
+    tetherRef,
+    whipSegments,
+    whipRef,
+    isWhipping,
+    strikeDir,
+    whipId,
+    cooldownRatio,
+  };
 }

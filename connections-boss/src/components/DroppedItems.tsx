@@ -22,7 +22,7 @@ export function DroppedItems({ items }: DroppedItemsProps) {
           <Text
             text={item.type.toUpperCase()}
             fontSize={10}
-            fill="black"
+            fill="white"
             y={15}
             align="center"
             offsetX={25}

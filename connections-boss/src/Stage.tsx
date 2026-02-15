@@ -85,8 +85,15 @@ export function StageBackground() {
   const { applyKnockback, update } = usePlayerMovement({ playerParts });
   const playerRef = useRef<Konva.Group>(null);
   const bossRef = useRef<Konva.Group>(null);
-  const { tetherRef, whipSegments, whipRef, isWhipping, strikeDir, whipId } =
-    useWhipInput(playerRef, bossRef, playerParts, playSound);
+  const {
+    tetherRef,
+    whipSegments,
+    whipRef,
+    isWhipping,
+    strikeDir,
+    whipId,
+    cooldownRatio,
+  } = useWhipInput(playerRef, bossRef, playerParts, playSound);
   const lastWhipHitId = useRef(0);
   const [droppedItems, setDroppedItems] = useState<DroppedItem[]>([]);
   const [bullets, setBullets] = useState<Bullet[]>([]);
@@ -495,6 +502,36 @@ export function StageBackground() {
           lockedTarget={lockedTarget}
         />
       </Layer>
+      {gamePhase === "playing" && (
+        <Layer listening={false}>
+          <Rect
+            x={size.width * 0.35}
+            y={size.height - 40}
+            width={size.width * 0.3}
+            height={12}
+            fill="#0b1a24"
+            opacity={0.8}
+            cornerRadius={6}
+          />
+          <Rect
+            x={size.width * 0.35}
+            y={size.height - 40}
+            width={size.width * 0.3 * (1 - cooldownRatio)}
+            height={12}
+            fill="#36c2ff"
+            cornerRadius={6}
+          />
+          <Text
+            text="Whip"
+            x={size.width * 0.35}
+            y={size.height - 60}
+            width={size.width * 0.3}
+            align="center"
+            fontSize={12}
+            fill="#bfe9ff"
+          />
+        </Layer>
+      )}
       {gamePhase === "start" && (
         <Layer>
           <Rect
