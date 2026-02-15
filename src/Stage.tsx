@@ -420,7 +420,7 @@ export function StageBackground() {
             whipId.current !== lastWhipHitId.current
           ) {
             lastWhipHitId.current = whipId.current;
-            setBossHealth((prev) => Math.max(0, prev - 10));
+            setBossHealth((prev) => Math.max(0, prev - 2));
             tetherRef.current.stroke("#fff");
           } else {
             tetherRef.current.stroke("#00f2ff");
