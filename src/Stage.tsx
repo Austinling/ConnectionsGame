@@ -87,7 +87,6 @@ export function StageBackground() {
       return next;
     });
   };
-  const [isConnected, setIsConnected] = useState(true);
   const [healthPacks, setHealthPacks] = useState<
     { id: number; x: number; y: number }[]
   >([]);
@@ -210,17 +209,6 @@ export function StageBackground() {
         }
       }
 
-      if (bossRef.current && playerRef.current) {
-        const bX = bossRef.current.x();
-        const bY = bossRef.current.y();
-        const pX = playerRef.current.x();
-        const pY = playerRef.current.y();
-
-        const dx = pX - bX;
-        const dy = pY - bY;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-      }
-
       if (Date.now() > lastHealthSpawn.current + 15000) {
         playSound(spawnSound);
         const newPack = {
@@ -321,7 +309,6 @@ export function StageBackground() {
 
         children?.forEach((child, index) => {
           const actualChild = child as Konva.Node;
-          const bob = Math.sin(time + index * 0.8) * range;
           const initialY = actualChild.getAttr("initialY");
 
           if (typeof initialY === "number") {
