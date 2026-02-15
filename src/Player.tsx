@@ -17,8 +17,6 @@ export function Player({
   };
   playerHealth: number;
 }) {
-  const time = Date.now() * 0.0005;
-
   return (
     <Group ref={playerRef} width={100} height={100}>
       <Circle

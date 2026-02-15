@@ -17,7 +17,6 @@ export function usePlayerMovement({
     useRef({});
   let acceleration: number = 0.2;
   const friction: number = 0.9;
-  const dashPower: number = 25;
 
   const playerWidth = 20;
   const playerHeight = 80;
