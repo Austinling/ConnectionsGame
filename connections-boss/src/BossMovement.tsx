@@ -113,7 +113,7 @@ export function useBossMovement({
         bossLocation.current.x += (dX / dist) * speed;
         bossLocation.current.y += (dY / dist) * speed;
       } else {
-        setPlayerHealth((prev) => Math.max(0, prev - 1 / 2));
+        setPlayerHealth((prev) => Math.max(0, prev - 2));
 
         const power = 40;
 

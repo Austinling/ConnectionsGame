@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Stage, Layer, Line, Rect, Text } from "react-konva";
+import { Stage, Layer, Line, Rect, Text, Circle } from "react-konva";
 import { usePlayerMovement } from "./PlayerMovement";
 import { Player } from "./Player";
 import { Boss } from "./Boss";
@@ -28,25 +28,18 @@ import winSoundUrl from "./sounds/win.m4a";
 import yellSoundUrl from "./sounds/yell.m4a";
 import pewSoundUrl from "./sounds/pew.m4a";
 import collectSoundUrl from "./sounds/collect.m4a";
+import happySoundUrl from "./sounds/happy.m4a";
 
 const bullSound = new Audio(bullSoundUrl);
-bullSound.volume = 0.5;
 const kamekamehaSound = new Audio(kamekamehaSoundUrl);
-kamekamehaSound.volume = 0.5;
 const loseSound = new Audio(loseSoundUrl);
-loseSound.volume = 0.5;
 const spawnSound = new Audio(spawnSoundUrl);
-spawnSound.volume = 0.5;
 const volcanoSound = new Audio(volcanoSoundUrl);
-volcanoSound.volume = 0.5;
 const winSound = new Audio(winSoundUrl);
-winSound.volume = 0.5;
 const yellSound = new Audio(yellSoundUrl);
-yellSound.volume = 0.5;
 const pewSound = new Audio(pewSoundUrl);
-pewSound.volume = 0.5;
 const collectSound = new Audio(collectSoundUrl);
-collectSound.volume = 0.5;
+const happySound = new Audio(happySoundUrl);
 
 export function StageBackground() {
   const size = useStageSize();
@@ -66,11 +59,13 @@ export function StageBackground() {
 
   const playSound = (audioRef: HTMLAudioElement) => {
     audioRef.currentTime = 0;
+
+    audioRef.volume = 0.5;
     audioRef.play().catch(() => {});
   };
 
   const [bossHealth, setBossHealth] = useState(100);
-  const [playerHealth, setPlayerHealth] = useState(1000);
+  const [playerHealth, setPlayerHealth] = useState(100);
   const setPlayerHealthWithSound: React.Dispatch<
     React.SetStateAction<number>
   > = (action) => {
@@ -426,6 +421,51 @@ export function StageBackground() {
 
   return (
     <Stage width={size.width} height={size.height}>
+      <Layer listening={false}>
+        <Rect
+          x={0}
+          y={0}
+          width={size.width}
+          height={size.height}
+          fillLinearGradientStartPoint={{ x: 0, y: 0 }}
+          fillLinearGradientEndPoint={{ x: size.width, y: size.height }}
+          fillLinearGradientColorStops={[
+            0,
+            "#0a0f1f",
+            0.5,
+            "#0b2033",
+            1,
+            "#1a0c2b",
+          ]}
+        />
+        <Circle
+          x={size.width * 0.2}
+          y={size.height * 0.25}
+          radius={220}
+          fill="#2b6cb0"
+          opacity={0.12}
+          shadowBlur={60}
+          shadowColor="#2b6cb0"
+        />
+        <Circle
+          x={size.width * 0.8}
+          y={size.height * 0.2}
+          radius={180}
+          fill="#805ad5"
+          opacity={0.1}
+          shadowBlur={50}
+          shadowColor="#805ad5"
+        />
+        <Circle
+          x={size.width * 0.7}
+          y={size.height * 0.75}
+          radius={260}
+          fill="#ed8936"
+          opacity={0.08}
+          shadowBlur={70}
+          shadowColor="#ed8936"
+        />
+      </Layer>
       <Layer>
         <Line
           ref={tetherRef}
@@ -494,10 +534,12 @@ export function StageBackground() {
             onMouseDown={() => {
               setDifficulty("easy");
               setGamePhase("playing");
+              playSound(happySound);
             }}
             onTap={() => {
               setDifficulty("easy");
               setGamePhase("playing");
+              playSound(happySound);
             }}
           />
           <Text
@@ -520,10 +562,12 @@ export function StageBackground() {
             onMouseDown={() => {
               setDifficulty("hard");
               setGamePhase("playing");
+              playSound(happySound);
             }}
             onTap={() => {
               setDifficulty("hard");
               setGamePhase("playing");
+              playSound(happySound);
             }}
           />
           <Text
