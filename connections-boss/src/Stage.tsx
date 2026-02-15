@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Stage, Layer, Line, Rect, Text, Circle } from "react-konva";
+import { Stage, Layer, Line } from "react-konva";
 import { usePlayerMovement } from "./PlayerMovement";
 import { Player } from "./Player";
 import { Boss } from "./Boss";
@@ -8,6 +8,10 @@ import { useBossMovement } from "./BossMovement";
 import { Bullets } from "./components/Bullets";
 import { DroppedItems } from "./components/DroppedItems";
 import { LavaPits } from "./components/LavaPits";
+import { StageBackgroundLayer } from "./components/StageBackgroundLayer";
+import { StartScreen } from "./components/StartScreen";
+import { EndScreen } from "./components/EndScreen";
+import { WhipCooldownBar } from "./components/WhipCooldownBar";
 import { useStageSize } from "./hooks/useStageSize";
 import { useWhipInput } from "./hooks/useWhipInput";
 import type {
@@ -56,6 +60,12 @@ export function StageBackground() {
     leftLeg: false,
     rightLeg: false,
   });
+
+  const handleStart = (mode: "easy" | "hard") => {
+    setDifficulty(mode);
+    setGamePhase("playing");
+    playSound(happySound);
+  };
 
   const playSound = (audioRef: HTMLAudioElement) => {
     audioRef.currentTime = 0;
@@ -428,51 +438,7 @@ export function StageBackground() {
 
   return (
     <Stage width={size.width} height={size.height}>
-      <Layer listening={false}>
-        <Rect
-          x={0}
-          y={0}
-          width={size.width}
-          height={size.height}
-          fillLinearGradientStartPoint={{ x: 0, y: 0 }}
-          fillLinearGradientEndPoint={{ x: size.width, y: size.height }}
-          fillLinearGradientColorStops={[
-            0,
-            "#0a0f1f",
-            0.5,
-            "#0b2033",
-            1,
-            "#1a0c2b",
-          ]}
-        />
-        <Circle
-          x={size.width * 0.2}
-          y={size.height * 0.25}
-          radius={220}
-          fill="#2b6cb0"
-          opacity={0.12}
-          shadowBlur={60}
-          shadowColor="#2b6cb0"
-        />
-        <Circle
-          x={size.width * 0.8}
-          y={size.height * 0.2}
-          radius={180}
-          fill="#805ad5"
-          opacity={0.1}
-          shadowBlur={50}
-          shadowColor="#805ad5"
-        />
-        <Circle
-          x={size.width * 0.7}
-          y={size.height * 0.75}
-          radius={260}
-          fill="#ed8936"
-          opacity={0.08}
-          shadowBlur={70}
-          shadowColor="#ed8936"
-        />
-      </Layer>
+      <StageBackgroundLayer width={size.width} height={size.height} />
       <Layer>
         <Line
           ref={tetherRef}
@@ -503,189 +469,26 @@ export function StageBackground() {
         />
       </Layer>
       {gamePhase === "playing" && (
-        <Layer listening={false}>
-          <Rect
-            x={size.width * 0.35}
-            y={size.height - 40}
-            width={size.width * 0.3}
-            height={12}
-            fill="#0b1a24"
-            opacity={0.8}
-            cornerRadius={6}
-          />
-          <Rect
-            x={size.width * 0.35}
-            y={size.height - 40}
-            width={size.width * 0.3 * (1 - cooldownRatio)}
-            height={12}
-            fill="#36c2ff"
-            cornerRadius={6}
-          />
-          <Text
-            text="Whip"
-            x={size.width * 0.35}
-            y={size.height - 60}
-            width={size.width * 0.3}
-            align="center"
-            fontSize={12}
-            fill="#bfe9ff"
-          />
-        </Layer>
+        <WhipCooldownBar
+          width={size.width}
+          height={size.height}
+          cooldownRatio={cooldownRatio}
+        />
       )}
       {gamePhase === "start" && (
-        <Layer>
-          <Rect
-            x={0}
-            y={0}
-            width={size.width}
-            height={size.height}
-            fill="rgba(0, 0, 0, 0.75)"
-          />
-          <Text
-            text="Connections Boss"
-            x={0}
-            y={size.height * 0.4}
-            width={size.width}
-            align="center"
-            fontSize={42}
-            fill="#ffffff"
-            listening={false}
-          />
-          <Text
-            text="Select Difficulty"
-            x={0}
-            y={size.height * 0.8}
-            width={size.width}
-            align="center"
-            fontSize={22}
-            fill="#bfe9ff"
-            listening={false}
-          />
-          <Rect
-            x={size.width * 0.32}
-            y={size.height * 0.5}
-            width={size.width * 0.18}
-            height={50}
-            fill={difficulty === "easy" ? "#1f8fff" : "#224"}
-            cornerRadius={8}
-            onMouseDown={() => {
-              setDifficulty("easy");
-              setGamePhase("playing");
-              playSound(happySound);
-            }}
-            onTap={() => {
-              setDifficulty("easy");
-              setGamePhase("playing");
-              playSound(happySound);
-            }}
-          />
-          <Text
-            text="Easy"
-            x={size.width * 0.32}
-            y={size.height * 0.5 + 12}
-            width={size.width * 0.18}
-            align="center"
-            fontSize={20}
-            fill="#ffffff"
-            listening={false}
-          />
-          <Rect
-            x={size.width * 0.5}
-            y={size.height * 0.5}
-            width={size.width * 0.18}
-            height={50}
-            fill={difficulty === "hard" ? "#ff4a4a" : "#422"}
-            cornerRadius={8}
-            onMouseDown={() => {
-              setDifficulty("hard");
-              setGamePhase("playing");
-              playSound(happySound);
-            }}
-            onTap={() => {
-              setDifficulty("hard");
-              setGamePhase("playing");
-              playSound(happySound);
-            }}
-          />
-          <Text
-            text="Hard"
-            x={size.width * 0.5}
-            y={size.height * 0.5 + 12}
-            width={size.width * 0.18}
-            align="center"
-            fontSize={20}
-            fill="#ffffff"
-            listening={false}
-          />
-        </Layer>
+        <StartScreen
+          width={size.width}
+          height={size.height}
+          difficulty={difficulty}
+          onSelect={handleStart}
+        />
       )}
-      {gamePhase === "won" && (
-        <Layer>
-          <Rect
-            x={0}
-            y={0}
-            width={size.width}
-            height={size.height}
-            fill="rgba(0, 0, 0, 0.75)"
-          />
-          <Text
-            text="You Win!"
-            x={0}
-            y={size.height * 0.42}
-            width={size.width}
-            align="center"
-            fontSize={48}
-            fill="#ffffff"
-          />
-          <Text
-            text="Refresh to play again"
-            x={0}
-            y={size.height * 0.54}
-            width={size.width}
-            align="center"
-            fontSize={20}
-            fill="#bfe9ff"
-          />
-        </Layer>
-      )}
-      {gamePhase === "lost" && (
-        <Layer>
-          <Rect
-            x={0}
-            y={0}
-            width={size.width}
-            height={size.height}
-            fill="rgba(0, 0, 0, 0.75)"
-          />
-          <Text
-            text="You Lost"
-            x={0}
-            y={size.height * 0.42}
-            width={size.width}
-            align="center"
-            fontSize={48}
-            fill="#ffffff"
-          />
-          <Text
-            text={`Boss health: ${bossHealth}`}
-            x={0}
-            y={size.height * 0.5}
-            width={size.width}
-            align="center"
-            fontSize={22}
-            fill="#ffcf7a"
-          />
-          <Text
-            text="Refresh to try again"
-            x={0}
-            y={size.height * 0.54}
-            width={size.width}
-            align="center"
-            fontSize={20}
-            fill="#bfe9ff"
-          />
-        </Layer>
-      )}
+      <EndScreen
+        width={size.width}
+        height={size.height}
+        phase={gamePhase === "won" || gamePhase === "lost" ? gamePhase : null}
+        bossHealth={bossHealth}
+      />
     </Stage>
   );
 }
