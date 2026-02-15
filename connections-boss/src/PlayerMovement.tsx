@@ -1,15 +1,21 @@
 import { useRef, useEffect } from "react";
+import type { PlayerParts } from "./types";
 
-export function usePlayerMovement() {
+export function usePlayerMovement({
+  playerParts,
+}: {
+  playerParts: PlayerParts;
+}) {
   const validKeys = ["w", "a", "s", "d"];
 
   type GameKey = (typeof validKeys)[number];
 
   const playerLocation = useRef({ x: 0, y: 0 });
   const velocity = useRef({ x: 0, y: 0 });
+  const knockback = useRef({ x: 0, y: 0 });
   const currentKeys: React.RefObject<Partial<Record<GameKey, boolean>>> =
     useRef({});
-  const acceleration: number = 0.8;
+  let acceleration: number = 0.2;
   const friction: number = 0.9;
   const dashPower: number = 25;
 
@@ -44,10 +50,20 @@ export function usePlayerMovement() {
     };
   }, []);
 
+  const applyKnockback = (vx: number, vy: number) => {
+    knockback.current = { x: vx, y: vy };
+  };
+
   const update = () => {
     const keys = currentKeys.current;
 
     if (keys === null) return;
+
+    if (playerParts.leftLeg && playerParts.rightLeg) {
+      acceleration = 0.8;
+    } else if (playerParts.leftLeg || playerParts.rightLeg) {
+      acceleration = 0.5;
+    }
 
     if (keys.w) velocity.current.y -= acceleration;
     if (keys.s) velocity.current.y += acceleration;
@@ -64,7 +80,7 @@ export function usePlayerMovement() {
       playerLocation.current.x = window.innerWidth - playerWidth;
       velocity.current.x = 0;
     } else {
-      playerLocation.current.x += velocity.current.x;
+      playerLocation.current.x += velocity.current.x + knockback.current.x;
     }
 
     if (playerLocation.current.y < playerHeight) {
@@ -74,8 +90,11 @@ export function usePlayerMovement() {
       playerLocation.current.y = window.innerHeight - playerHeight;
       velocity.current.y = 0;
     } else {
-      playerLocation.current.y += velocity.current.y;
+      playerLocation.current.y += velocity.current.y + knockback.current.y;
     }
+
+    knockback.current.x *= 0.8;
+    knockback.current.y *= 0.8;
 
     return {
       pos: playerLocation.current,
@@ -83,5 +102,5 @@ export function usePlayerMovement() {
     };
   };
 
-  return { playerLocation, update };
+  return { playerLocation, update, applyKnockback };
 }

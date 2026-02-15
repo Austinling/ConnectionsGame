@@ -1,18 +1,62 @@
 import { useEffect, useState, useRef } from "react";
-import { Stage, Layer, Line } from "react-konva";
+import { Stage, Layer, Line, Rect, Text } from "react-konva";
 import { usePlayerMovement } from "./PlayerMovement";
 import { Player } from "./Player";
 import { Boss } from "./Boss";
 import Konva from "konva";
 import { useBossMovement } from "./BossMovement";
+import { Bullets } from "./components/Bullets";
+import { DroppedItems } from "./components/DroppedItems";
+import { LavaPits } from "./components/LavaPits";
+import { useStageSize } from "./hooks/useStageSize";
+import { useWhipInput } from "./hooks/useWhipInput";
+import type {
+  Bullet,
+  DroppedItem,
+  LavaPit,
+  PlayerPartKey,
+  PlayerParts,
+} from "./types";
+import { HealthPacks } from "./components/HealthPacks";
+import { Kamekameha } from "./Kamekameha";
+import bullSoundUrl from "./sounds/bull.m4a";
+import kamekamehaSoundUrl from "./sounds/kamekameha.m4a";
+import loseSoundUrl from "./sounds/lose.m4a";
+import spawnSoundUrl from "./sounds/spawn.m4a";
+import volcanoSoundUrl from "./sounds/volcano.m4a";
+import winSoundUrl from "./sounds/win.m4a";
+import yellSoundUrl from "./sounds/yell.m4a";
+import pewSoundUrl from "./sounds/pew.m4a";
+import collectSoundUrl from "./sounds/collect.m4a";
+
+const bullSound = new Audio(bullSoundUrl);
+bullSound.volume = 0.5;
+const kamekamehaSound = new Audio(kamekamehaSoundUrl);
+kamekamehaSound.volume = 0.5;
+const loseSound = new Audio(loseSoundUrl);
+loseSound.volume = 0.5;
+const spawnSound = new Audio(spawnSoundUrl);
+spawnSound.volume = 0.5;
+const volcanoSound = new Audio(volcanoSoundUrl);
+volcanoSound.volume = 0.5;
+const winSound = new Audio(winSoundUrl);
+winSound.volume = 0.5;
+const yellSound = new Audio(yellSoundUrl);
+yellSound.volume = 0.5;
+const pewSound = new Audio(pewSoundUrl);
+pewSound.volume = 0.5;
+const collectSound = new Audio(collectSoundUrl);
+collectSound.volume = 0.5;
 
 export function StageBackground() {
-  const [size, setSize] = useState({
-    width: window.innerWidth,
-    height: window.innerHeight,
-  });
+  const size = useStageSize();
 
-  const [playerParts, setPlayerParts] = useState({
+  const [gamePhase, setGamePhase] = useState<
+    "start" | "playing" | "won" | "lost"
+  >("start");
+  const [difficulty, setDifficulty] = useState<"easy" | "hard">("easy");
+
+  const [playerParts, setPlayerParts] = useState<PlayerParts>({
     body: false,
     leftArm: false,
     rightArm: false,
@@ -20,60 +64,95 @@ export function StageBackground() {
     rightLeg: false,
   });
 
+  const playSound = (audioRef: HTMLAudioElement) => {
+    audioRef.currentTime = 0;
+    audioRef.play().catch(() => {});
+  };
+
   const [bossHealth, setBossHealth] = useState(100);
-  const [playerHealth, setPlayerHealth] = useState(100);
+  const [playerHealth, setPlayerHealth] = useState(1000);
+  const setPlayerHealthWithSound: React.Dispatch<
+    React.SetStateAction<number>
+  > = (action) => {
+    setPlayerHealth((prev) => {
+      const next = typeof action === "function" ? action(prev) : action;
+      if (next < prev) {
+        playSound(yellSound);
+      }
+      return next;
+    });
+  };
   const [isConnected, setIsConnected] = useState(true);
-  const { playerLocation, update } = usePlayerMovement();
+  const [healthPacks, setHealthPacks] = useState<
+    { id: number; x: number; y: number }[]
+  >([]);
+  const lastHealthSpawn = useRef(0);
+  const { applyKnockback, update } = usePlayerMovement({ playerParts });
   const playerRef = useRef<Konva.Group>(null);
   const bossRef = useRef<Konva.Group>(null);
-  const tetherRef = useRef<Konva.Line>(null);
-  const whipRef = useRef(0);
-  const isWhipping = useRef(false);
-  const strikeDir = useRef({ x: 0, y: 0 });
-  const whipSegments = useRef(
-    new Array(10).fill(null).map(() => ({ x: 0, y: 0 })),
-  );
+  const { tetherRef, whipSegments, whipRef, isWhipping, strikeDir, whipId } =
+    useWhipInput(playerRef, bossRef, playerParts, playSound);
+  const lastWhipHitId = useRef(0);
+  const [droppedItems, setDroppedItems] = useState<DroppedItem[]>([]);
+  const [bullets, setBullets] = useState<Bullet[]>([]);
+  const [isBossBeaming, setIsBossBeaming] = useState(false);
+  const [isChargingBeam, setIsChargingBeam] = useState(false);
+  const lockedTarget = useRef({ x: 0, y: 0 });
+  const lastPewAt = useRef(0);
+  const lastBeamDamageAt = useRef(0);
+
   const { bossUpdate } = useBossMovement({
     playerLocation: playerRef,
-    setPlayerHealth: setPlayerHealth,
+    setPlayerHealth: setPlayerHealthWithSound,
+    applyKnockback: applyKnockback,
+    setIsBossBeaming: setIsBossBeaming,
+    setIsChargingBeam: setIsChargingBeam,
+    lockedTarget: lockedTarget,
+    onBullCharge: () => playSound(bullSound),
+    difficulty: difficulty,
   });
 
-  useEffect(() => {
-    const handleResize = () => {
-      setSize({ width: window.innerWidth, height: window.innerHeight });
-    };
+  const [lavaPits, setLavaPits] = useState<LavaPit[]>([]);
+  const lastLavaSpawn = useRef(0);
 
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+  const damageMulti = playerParts.body ? 2 : 1;
+
+  const mileStonesReached = useRef<Set<number>>(new Set<number>());
 
   useEffect(() => {
-    const handleWhip = () => {
-      if (!playerRef.current || !bossRef.current) return;
-      const dx = bossRef.current.x() - playerRef.current.x();
-      const dy = bossRef.current.y() - playerRef.current.y();
-      const distance = Math.sqrt(dx * dx + dy * dy);
+    if (gamePhase === "playing" && bossHealth <= 0) {
+      setBossHealth(0);
+      setGamePhase("won");
+      playSound(winSound);
+    }
+  }, [bossHealth, gamePhase]);
 
-      strikeDir.current = {
-        x: dx / distance,
-        y: dy / distance,
-      };
+  useEffect(() => {
+    if (gamePhase === "playing" && playerHealth <= 0) {
+      setPlayerHealth(0);
+      setGamePhase("lost");
+      playSound(loseSound);
+    }
+  }, [gamePhase, playerHealth]);
 
-      isWhipping.current = true;
-      whipRef.current = 50;
-
-      setTimeout(() => (isWhipping.current = false), 300);
-    };
-
-    window.addEventListener("mousedown", handleWhip);
-
-    return () => window.removeEventListener("mousedown", handleWhip);
-  }, []);
+  useEffect(() => {
+    if (isChargingBeam || isBossBeaming) {
+      kamekamehaSound.play().catch(() => {});
+    } else {
+      kamekamehaSound.pause();
+      kamekamehaSound.currentTime = 0;
+    }
+  }, [isChargingBeam, isBossBeaming]);
 
   useEffect(() => {
     let frameId: number;
 
     const loop = () => {
+      if (gamePhase !== "playing") {
+        frameId = requestAnimationFrame(loop);
+        return;
+      }
+
       const newPos = update();
 
       const bossPos = bossUpdate(bossHealth);
@@ -84,6 +163,140 @@ export function StageBackground() {
         bossRef.current.x(bossPos.x);
         bossRef.current.y(bossPos.y);
       }
+
+      if (isBossBeaming && bossRef.current && playerRef.current) {
+        const b = bossRef.current;
+        const p = playerRef.current;
+
+        const ax = b.x();
+        const ay = b.y();
+        const bx = lockedTarget.current.x;
+        const by = lockedTarget.current.y;
+        const px = p.x();
+        const py = p.y();
+
+        const abx = bx - ax;
+        const aby = by - ay;
+        const apx = px - ax;
+        const apy = py - ay;
+        const abLenSq = abx * abx + aby * aby || 1;
+        const t = Math.max(0, Math.min(1, (apx * abx + apy * aby) / abLenSq));
+        const cx = ax + abx * t;
+        const cy = ay + aby * t;
+        const dx = px - cx;
+        const dy = py - cy;
+        const distanceToBeam = Math.sqrt(dx * dx + dy * dy);
+
+        const beamRadius = 25;
+        const now = Date.now();
+        if (
+          distanceToBeam <= beamRadius &&
+          now - lastBeamDamageAt.current > 150
+        ) {
+          lastBeamDamageAt.current = now;
+          setPlayerHealthWithSound((h) => Math.max(0, h - 10));
+        }
+      }
+
+      if (bossRef.current && playerRef.current) {
+        const bX = bossRef.current.x();
+        const bY = bossRef.current.y();
+        const pX = playerRef.current.x();
+        const pY = playerRef.current.y();
+
+        const dx = pX - bX;
+        const dy = pY - bY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+      }
+
+      if (Date.now() > lastHealthSpawn.current + 15000) {
+        playSound(spawnSound);
+        const newPack = {
+          id: Date.now(),
+          x: Math.random() * (size.width - 50) + 25,
+          y: Math.random() * (size.height - 50) + 25,
+        };
+        setHealthPacks((prev) => [...prev, newPack]);
+        lastHealthSpawn.current = Date.now();
+      }
+
+      healthPacks.forEach((pack) => {
+        const dx = playerRef.current!.x() - pack.x;
+        const dy = playerRef.current!.y() - pack.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < 30) {
+          playSound(collectSound);
+          setPlayerHealthWithSound((h) => Math.min(100, h + 20));
+
+          setHealthPacks((prev) => prev.filter((p) => p.id !== pack.id));
+          console.log("Healed!");
+        }
+      });
+
+      const lavaActive =
+        difficulty === "easy"
+          ? bossHealth <= 40 && bossHealth > 25
+          : bossHealth < 40;
+
+      if (lavaActive && Date.now() > lastLavaSpawn.current + 1000) {
+        playSound(volcanoSound);
+        const newPit = {
+          id: Date.now(),
+          x: bossRef.current!.x(),
+          y: bossRef.current!.y(),
+        };
+        setLavaPits((prev) => [...prev, newPit].slice(-10));
+        lastLavaSpawn.current = Date.now();
+      }
+
+      lavaPits.forEach((pit) => {
+        const dx = playerRef.current!.x() - pit.x;
+        const dy = playerRef.current!.y() - pit.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < 40) {
+          setPlayerHealthWithSound((h) => Math.max(0, h - 0.5 / damageMulti));
+        }
+      });
+
+      if (bossPos?.isSpraying) {
+        if (Math.random() > 0.8) {
+          if (Date.now() - lastPewAt.current > 150) {
+            playSound(pewSound);
+            lastPewAt.current = Date.now();
+          }
+          const angle = Date.now() * 0.005;
+          const newBullet = {
+            id: Math.random(),
+            x: bossPos.x,
+            y: bossPos.y,
+            vx: Math.cos(angle) * 5,
+            vy: Math.sin(angle) * 5,
+          };
+          setBullets((prev) => [...prev, newBullet]);
+        }
+      }
+
+      setBullets((prev) =>
+        prev
+          .map((b) => ({
+            ...b,
+            x: b.x + b.vx,
+            y: b.y + b.vy,
+          }))
+          .filter(
+            (b) => b.x > 0 && b.x < size.width && b.y > 0 && b.y < size.height,
+          ),
+      );
+
+      bullets.forEach((b) => {
+        const dx = playerRef.current!.x() - b.x;
+        const dy = playerRef.current!.y() - b.y;
+        if (Math.sqrt(dx * dx + dy * dy) < 15) {
+          setPlayerHealthWithSound((h) => Math.max(0, h - 2 / damageMulti));
+        }
+      });
 
       if (playerRef.current && newPos) {
         playerRef.current.x(newPos.pos.x);
@@ -105,6 +318,50 @@ export function StageBackground() {
           }
         });
       }
+
+      droppedItems.forEach((item) => {
+        if (!playerRef.current) return;
+        const dx = playerRef.current.x() - item.x;
+        const dy = playerRef.current.y() - item.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < 30) {
+          playSound(collectSound);
+          setPlayerParts((prev) => ({
+            ...prev,
+            [item.type]: true,
+          }));
+
+          setDroppedItems((prev) => prev.filter((i) => i.id !== item.id));
+        }
+      });
+
+      const milestones = [85, 70, 55, 40, 25];
+      const parts: PlayerPartKey[] = [
+        "leftLeg",
+        "rightLeg",
+        "leftArm",
+        "rightArm",
+        "body",
+      ];
+
+      milestones.forEach((threshold, index) => {
+        if (
+          bossHealth <= threshold &&
+          !mileStonesReached.current.has(threshold)
+        ) {
+          mileStonesReached.current.add(threshold);
+
+          const newDrop = {
+            id: Date.now() + index,
+            x: bossRef.current?.x() || 0,
+            y: bossRef.current?.y() || 0,
+            type: parts[index],
+          };
+
+          setDroppedItems((prev) => [...prev, newDrop]);
+        }
+      });
 
       if (tetherRef.current && playerRef.current) {
         const p = playerRef.current;
@@ -145,8 +402,13 @@ export function StageBackground() {
           const dy = tip.y - b.y();
           const distance = Math.sqrt(dx * dx + dy * dy);
 
-          if (distance < 50 && isWhipping.current) {
-            setBossHealth((prev) => prev - 1);
+          if (
+            distance < 50 &&
+            isWhipping.current &&
+            whipId.current !== lastWhipHitId.current
+          ) {
+            lastWhipHitId.current = whipId.current;
+            setBossHealth((prev) => Math.max(0, prev - 10));
             tetherRef.current.stroke("#fff");
           } else {
             tetherRef.current.stroke("#00f2ff");
@@ -160,7 +422,7 @@ export function StageBackground() {
     frameId = requestAnimationFrame(loop);
 
     return () => cancelAnimationFrame(frameId);
-  }, [update, bossUpdate, isWhipping]);
+  }, [update, bossUpdate, isWhipping, gamePhase]);
 
   return (
     <Stage width={size.width} height={size.height}>
@@ -180,7 +442,169 @@ export function StageBackground() {
           playerRef={playerRef}
         />
         <Boss bossHealth={bossHealth} bossRef={bossRef} />
+
+        <Bullets bullets={bullets} />
+        <DroppedItems items={droppedItems} />
+        <LavaPits pits={lavaPits} />
+        <HealthPacks healthPacks={healthPacks} />
+        <Kamekameha
+          isBossBeaming={isBossBeaming}
+          isChargingBeam={isChargingBeam}
+          bossRef={bossRef}
+          playerRef={playerRef}
+          lockedTarget={lockedTarget}
+        />
       </Layer>
+      {gamePhase === "start" && (
+        <Layer>
+          <Rect
+            x={0}
+            y={0}
+            width={size.width}
+            height={size.height}
+            fill="rgba(0, 0, 0, 0.75)"
+          />
+          <Text
+            text="Connections Boss"
+            x={0}
+            y={size.height * 0.4}
+            width={size.width}
+            align="center"
+            fontSize={42}
+            fill="#ffffff"
+            listening={false}
+          />
+          <Text
+            text="Select Difficulty"
+            x={0}
+            y={size.height * 0.8}
+            width={size.width}
+            align="center"
+            fontSize={22}
+            fill="#bfe9ff"
+            listening={false}
+          />
+          <Rect
+            x={size.width * 0.32}
+            y={size.height * 0.5}
+            width={size.width * 0.18}
+            height={50}
+            fill={difficulty === "easy" ? "#1f8fff" : "#224"}
+            cornerRadius={8}
+            onMouseDown={() => {
+              setDifficulty("easy");
+              setGamePhase("playing");
+            }}
+            onTap={() => {
+              setDifficulty("easy");
+              setGamePhase("playing");
+            }}
+          />
+          <Text
+            text="Easy"
+            x={size.width * 0.32}
+            y={size.height * 0.5 + 12}
+            width={size.width * 0.18}
+            align="center"
+            fontSize={20}
+            fill="#ffffff"
+            listening={false}
+          />
+          <Rect
+            x={size.width * 0.5}
+            y={size.height * 0.5}
+            width={size.width * 0.18}
+            height={50}
+            fill={difficulty === "hard" ? "#ff4a4a" : "#422"}
+            cornerRadius={8}
+            onMouseDown={() => {
+              setDifficulty("hard");
+              setGamePhase("playing");
+            }}
+            onTap={() => {
+              setDifficulty("hard");
+              setGamePhase("playing");
+            }}
+          />
+          <Text
+            text="Hard"
+            x={size.width * 0.5}
+            y={size.height * 0.5 + 12}
+            width={size.width * 0.18}
+            align="center"
+            fontSize={20}
+            fill="#ffffff"
+            listening={false}
+          />
+        </Layer>
+      )}
+      {gamePhase === "won" && (
+        <Layer>
+          <Rect
+            x={0}
+            y={0}
+            width={size.width}
+            height={size.height}
+            fill="rgba(0, 0, 0, 0.75)"
+          />
+          <Text
+            text="You Win!"
+            x={0}
+            y={size.height * 0.42}
+            width={size.width}
+            align="center"
+            fontSize={48}
+            fill="#ffffff"
+          />
+          <Text
+            text="Refresh to play again"
+            x={0}
+            y={size.height * 0.54}
+            width={size.width}
+            align="center"
+            fontSize={20}
+            fill="#bfe9ff"
+          />
+        </Layer>
+      )}
+      {gamePhase === "lost" && (
+        <Layer>
+          <Rect
+            x={0}
+            y={0}
+            width={size.width}
+            height={size.height}
+            fill="rgba(0, 0, 0, 0.75)"
+          />
+          <Text
+            text="You Lost"
+            x={0}
+            y={size.height * 0.42}
+            width={size.width}
+            align="center"
+            fontSize={48}
+            fill="#ffffff"
+          />
+          <Text
+            text={`Boss health: ${bossHealth}`}
+            x={0}
+            y={size.height * 0.5}
+            width={size.width}
+            align="center"
+            fontSize={22}
+            fill="#ffcf7a"
+          />
+          <Text
+            text="Refresh to try again"
+            x={0}
+            y={size.height * 0.54}
+            width={size.width}
+            align="center"
+            fontSize={20}
+            fill="#bfe9ff"
+          />
+        </Layer>
+      )}
     </Stage>
   );
 }
