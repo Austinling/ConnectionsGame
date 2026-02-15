@@ -16,29 +16,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  runs-on: ubuntu-latest
-  steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Node
-      uses: actions/setup-node@v4
-      with:
-        node-version: 20
-        cache: "npm"
-    - name: Install Dependencies
-    - run: npm install
-    - name: NPM build
-    - run: npm run build
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
 
-    - name: Setup Pages
-      uses: actions/configure-pages@v4
+      - name: Install Dependencies
+        run: npm install
 
-    - name: Upload Artifact
-      uses: actions/upload-pages-artifact@v3
-      with:
-        path: "./dist"
+      - name: NPM build
+        run: npm run build
 
-    - name: Deploy to GitHub Pages
-      id: deployment
-      uses: actions/deploy-pages@v4
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "./dist"
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
