@@ -1,4 +1,4 @@
-import { Group, Circle, Rect } from "react-konva";
+import { Group, Rect } from "react-konva";
 import Konva from "konva";
 
 export function HealthBar({

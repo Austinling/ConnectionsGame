@@ -1,6 +1,5 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef } from "react";
 import Konva from "konva";
-import { usePlayerMovement } from "./PlayerMovement";
 
 export function useBossMovement({
   playerLocation,
@@ -9,7 +8,6 @@ export function useBossMovement({
   setIsBossBeaming,
   setIsChargingBeam,
   lockedTarget,
-  onBullCharge,
   difficulty,
 }: {
   playerLocation: React.RefObject<Konva.Group | null>;
@@ -25,9 +23,6 @@ export function useBossMovement({
     x: window.innerWidth,
     y: window.innerHeight / 2,
   });
-
-  const attackTimer = useRef(0);
-  const bullChargeCycleId = useRef(-1);
 
   const bossUpdate = useCallback(
     (health: number) => {
